@@ -1,4 +1,3 @@
-line-bot-sdk==3.5.0
 fastapi
 uvicorn[standard]
 google.generativeai
@@ -7,3 +6,9 @@ pydantic
 tiktoken
 Pillow
 git+https://github.com/ozgur/python-firebase
+opencv-python
+gradio
+tensorflow
+line-bot-sdk
+scikit-learn
+keras
