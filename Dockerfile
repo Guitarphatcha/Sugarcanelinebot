@@ -15,4 +15,4 @@ RUN pip install -r requirements.txt
 EXPOSE 5000
 
 # Use the value of the PORT environment variable if available, fallback to 5000 if not
-CMD uvicorn main:app --host=0.0.0.0 --port=${PORT:-5000}
+CMD ["sh", "-c", "uvicorn main:app --host=0.0.0.0 --port=${PORT:-5000}"]
