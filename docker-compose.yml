@@ -1,8 +1,0 @@
-version: '3.8'
-services:
-  app:
-    build: .
-    ports:
-      - "5000:5000"  # Map port 5000 on host to port 5000 in container
-    environment:
-      - PORT=5000    # Set the PORT environment variable
