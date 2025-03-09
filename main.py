@@ -16,7 +16,8 @@ from tensorflow.keras.models import load_model
 from PIL import Image
 from io import BytesIO
 from sklearn.preprocessing import LabelEncoder
-
+from fastapi import Request, Response, HTTPException
+from linebot.exceptions import InvalidSignatureError
 from linebot.models import MessageEvent, TextMessage, TextSendMessage, ImageMessage
 
 # โหลดตัวแปร environment
@@ -305,7 +306,6 @@ async def classify_image(image_data):
     except Exception as e:
         logging.error(f"Classification error: {e}")
         return disease_info["Unknown"]
-
 @app.post("/webhook")
 async def handle_callback(request: Request):
     signature = request.headers.get('X-Line-Signature', '')
@@ -316,47 +316,53 @@ async def handle_callback(request: Request):
     except InvalidSignatureError:
         raise HTTPException(status_code=400, detail="Invalid signature")
 
-    for event in events:
-        if not isinstance(event, MessageEvent):
-            continue
+    try:
+        for event in events:
+            if not isinstance(event, MessageEvent):
+                continue
  
-        elif event.message.type == "text":
-            msg = event.message.text
-            
-            # กรณีทักทาย
-            if re.search(r"สวัสดี|hello|hi", msg, re.IGNORECASE):
-                response = "น้องอ้อยใจสวัสดีค่ะ สามารถส่งรูปภาพใบอ้อยเพื่อทำนายโรคหรือส่งคำถามเกี่ยวกับโรคอ้อยมาได้เลยค่ะ"
-            
-            # กรณีสอบถามรายชื่อโรค
-            elif re.search(r"โรค|อ้อย|ใบด่าง|ใบไหม้|สนิม|เน่าแดง", msg, re.IGNORECASE):
-                diseases = [disease_display_names[d] for d in disease_info.keys() if d != "Unknown"]
-                disease_list = "\n- ".join(diseases)
-                response = f"📜 โรคในอ้อยที่สามารถวิเคราะห์ได้มีดังนี้:\n- {disease_list}\n\n🖼️ สามารถส่งรูปภาพใบอ้อยเพื่อวิเคราะห์โรคได้ค่ะ"
-            
-            # กรณีข้อความทั่วไป
-            else:
-                response = "ระบบนี้ใช้สำหรับวิเคราะห์โรคอ้อยเท่านั้น"
-            
-            await line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text=response))
-        elif event.message.type == "image":
-            try:
-                message_content = await line_bot_api.get_message_content(event.message.id)
-                image_data = b''
+            elif event.message.type == "text":
+                msg = event.message.text
                 
-                async for chunk in message_content.iter_content():
-                    image_data += chunk
+                # กรณีทักทาย
+                if re.search(r"สวัสดี|hello|hi", msg, re.IGNORECASE):
+                    response = "น้องอ้อยใจสวัสดีค่ะ สามารถส่งรูปภาพใบอ้อยเพื่อทำนายโรคหรือส่งคำถามเกี่ยวกับโรคอ้อยมาได้เลยค่ะ"
+                
+                # กรณีสอบถามรายชื่อโรค
+                elif re.search(r"โรค|อ้อย|ใบด่าง|ใบไหม้|สนิม|เน่าแดง", msg, re.IGNORECASE):
+                    diseases = [disease_display_names[d] for d in disease_info.keys() if d != "Unknown"]
+                    disease_list = "\n- ".join(diseases)
+                    response = f"📜 โรคในอ้อยที่สามารถวิเคราะห์ได้มีดังนี้:\n- {disease_list}\n\n🖼️ สามารถส่งรูปภาพใบอ้อยเพื่อวิเคราะห์โรคได้ค่ะ"
+                
+                # กรณีข้อความทั่วไป
+                else:
+                    response = "ระบบนี้ใช้สำหรับวิเคราะห์โรคอ้อยเท่านั้น"
+                
+                await line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text=response))
+            elif event.message.type == "image":
+                try:
+                    message_content = await line_bot_api.get_message_content(event.message.id)
+                    image_data = b''
+                    
+                    async for chunk in message_content.iter_content():
+                        image_data += chunk
 
-                result = await classify_image(image_data)
-                
-                await line_bot_api.reply_message(
-                    event.reply_token,
-                    TextSendMessage(text=result))
-                
-            except Exception as e:
-                logging.error(f"Image processing error: {e}")
-                await line_bot_api.reply_message(
-                    event.reply_token,
-                    TextSendMessage(text=disease_info["Unknown"]))
-    return {"status": "success"}
+                    result = await classify_image(image_data)
+                    
+                    await line_bot_api.reply_message(
+                        event.reply_token,
+                        TextSendMessage(text=result))
+                    
+                except Exception as e:
+                    logging.error(f"Image processing error: {e}")
+                    await line_bot_api.reply_message(
+                        event.reply_token,
+                        TextSendMessage(text=disease_info["Unknown"]))
+        
+        # ส่งกลับรหัสสถานะ 200 อย่างชัดเจน
+        return Response(status_code=200)
+    except Exception as e:
+        logging.error(f"Unexpected error: {e}")
+        return Response(status_code=200)
