@@ -343,7 +343,7 @@ async def classify_image(image_data):
     except Exception as e:
         logging.error(f"Classification error: {e}")
         return disease_info["Unknown"]
-@app.post("/callback")
+@app.post("/webhook")
 async def handle_callback(request: Request):
     signature = request.headers.get('X-Line-Signature', '')
     body = await request.body()
