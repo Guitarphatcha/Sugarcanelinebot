@@ -18,8 +18,8 @@ from io import BytesIO
 from sklearn.preprocessing import LabelEncoder
 from fastapi import Request, Response, HTTPException
 from linebot.exceptions import InvalidSignatureError
-
-from linebot.models import MessageEvent, TextMessage, TextSendMessage, ImageMessage
+from fastapi import FastAPI, Request, HTTPException
+from linebot.models import MessageEvent, TextSendMessage
 import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
@@ -316,7 +316,9 @@ async def classify_image(image_data):
 @app.get("/")
 def read_root():
     return {"message": "Hello, FastAPI!"}
-app.post("/callback")
+
+app = FastAPI()
+@app.post("/callback")
 async def handle_callback(request: Request):
     signature = request.headers.get('X-Line-Signature', '')
     body = await request.body()
