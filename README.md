@@ -32,9 +32,7 @@
 
 To use the Receipt Helper, send a picture of your receipt to the LINE bot. The bot will process the image, extract the data, and provide a JSON representation of the receipt. For text-based commands or queries, simply send the command or query as a message to the bot.
 
-## Commands
 
-- `!清空`: Clears all the scanned receipt history for the user.
 
 ## Contributing
 
