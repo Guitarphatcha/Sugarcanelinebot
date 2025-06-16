@@ -18,17 +18,14 @@ from io import BytesIO
 from sklearn.preprocessing import LabelEncoder
 import tensorflow as tf
 
-# โหลดตัวแปร environment
 load_dotenv()
 
-# ตั้งค่า logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[logging.StreamHandler(sys.stdout)]
 )
 
-# ตรวจสอบตัวแปร environment
 channel_secret = os.getenv('ChannelSecret')
 channel_access_token = os.getenv('ChannelAccessToken')
 
@@ -36,7 +33,6 @@ if not channel_secret or not channel_access_token:
     logging.error("Missing LINE channel credentials")
     sys.exit(1)
 
-# โหลดโมเดล Keras
 try:
     model = load_model('model_final_1.h5')
     logging.info("Model loaded successfully")
@@ -170,11 +166,9 @@ disease_info = {
     """
 }
 
-# ตั้งค่า LabelEncoder
 label_encoder = LabelEncoder()
-label_encoder.classes_ = np.array(["Healthy", "Mosaic", "RedRot", "Rust", "Yellow"])  # ไม่รวม Unknown
+label_encoder.classes_ = np.array(["Healthy", "Mosaic", "RedRot", "Rust", "Yellow"])  
 
-# Mapping ชื่อโรคเป็นภาษาไทย
 disease_display_names = {
     "Healthy": "อ้อยสุขภาพดี",
     "Mosaic": "โรคใบด่าง",
@@ -285,20 +279,15 @@ async def classify_image(image_data):
         if error_msg:
             return error_msg
 
-        # ทำนายผล
+ 
         prediction = model.predict(processed_image)[0]
-        
-        # ตรวจสอบ OOD
+       
         ood_score = calculate_ood_score(prediction)
         if ood_score > 1.2:
             return disease_info["Unknown"]
-
-        # ตรวจสอบความมั่นใจ
         confidence = np.max(prediction) * 100
         if confidence < 66:
             return disease_info["Unknown"]
-
-        # ระบุคลาส
         predicted_class = np.argmax(prediction)
         disease_name = label_encoder.inverse_transform([predicted_class])[0]
 
@@ -328,13 +317,10 @@ async def handle_callback(request: Request):
 
         if event.message.type == "text":
             msg = event.message.text.strip()
-            response = None  # กำหนดค่าเริ่มต้น
+            response = None 
 
-            # กรณีทักทาย
             if msg == ["สวัสดี","สวัสดีครับ", "สวัสดีค่ะ","ดีจ้า","ดีครับ","ดีค่ะ"]:
                 response = "น้องอ้อยใจสวัสดีค่ะ 💚\nสามารถส่งรูปภาพใบอ้อยเพื่อทำนายโรคหรือส่งคำถามเกี่ยวกับโรคอ้อยมาได้เลยค่ะ"
-            
-            # กรณีสอบถามเกี่ยวกับโรคเฉพาะ
             if not response:
                 matched_disease = None
                 for disease, keywords in disease_keywords.items():
@@ -344,8 +330,6 @@ async def handle_callback(request: Request):
                 
                 if matched_disease:
                     response = disease_info.get(matched_disease, disease_info["Unknown"])
-
-            # กรณีสอบถามรายชื่อโรค
             if not response:
                 list_keywords = [
                     "โรคอะไรบ้าง", "มีโรคอะไร", "โรคมีอะไร", "โรคอ้อย","มีโรคไรบ้าง",
@@ -358,12 +342,10 @@ async def handle_callback(request: Request):
                     disease_list = "\n- ".join(diseases)
                     response = f"📜 โรคในอ้อยที่สามารถวิเคราะห์ได้มีดังนี้:\n- {disease_list}\n\n🖼️ สามารถส่งรูปภาพใบอ้อยเพื่อวิเคราะห์โรคได้ค่ะ"
 
-            # กรณีถามทั่วไปเกี่ยวกับโรค
             if not response:
                 if any(kw in msg for kw in ["โรค", "อ้อย"]):
                     response = "กรุณาส่งภาพใบอ้อยเพื่อวิเคราะห์โรค"
 
-            # กรณีไม่ตรงกับเงื่อนไขใดๆ
             if not response:
                 response = "ระบบนี้ใช้สำหรับวิเคราะห์โรคอ้อยเท่านั้น"
 
