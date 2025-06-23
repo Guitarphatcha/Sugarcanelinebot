@@ -8,7 +8,7 @@ Pillow
 git+https://github.com/ozgur/python-firebase
 gradio
 tensorflow
-tensorflow-cpu==2.13.0
+tensorflow-cpu
 line-bot-sdk
 scikit-learn
 keras

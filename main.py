@@ -17,6 +17,7 @@ from PIL import Image
 from io import BytesIO
 from sklearn.preprocessing import LabelEncoder
 import tensorflow as tf
+import asyncio
 
 load_dotenv()
 
@@ -40,6 +41,7 @@ except Exception as e:
     logging.error(f"Error loading model: {e}")
     sys.exit(1)
 
+model_lock = asyncio.Lock()
 # ข้อมูลโรคใบอ้อย (รวมคลาส Unknown)
 disease_info = {
     "Healthy": """
@@ -271,6 +273,17 @@ def calculate_ood_score(predictions):
     entropy = -np.sum(predictions * np.log(predictions + epsilon))
     return entropy
 
+def detect_mosaic_pattern(img):
+    try:
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        sobel_y = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=5)
+        abs_sobel_y = np.absolute(sobel_y)
+        mean_sobel = np.mean(abs_sobel_y)
+        return mean_sobel > 20 
+    except Exception as e:
+        logging.error(f'Mosaic pattern detection error: {e}')
+        return False
+
 async def classify_image(image_data):
     """กระบวนการจำแนกภาพแบบปรับปรุง"""
     try:
@@ -279,18 +292,16 @@ async def classify_image(image_data):
         if error_msg:
             return error_msg
 
- 
-        prediction = model.predict(processed_image)[0]
+        async with model_lock:
+            prediction = model.predict(processed_image)[0]
        
         ood_score = calculate_ood_score(prediction)
-        if ood_score > 1.2:
-            return disease_info["Unknown"]
         confidence = np.max(prediction) * 100
-        if confidence < 66:
+        if ood_score > 1.2 or confidence < 66:
             return disease_info["Unknown"]
         predicted_class = np.argmax(prediction)
         disease_name = label_encoder.inverse_transform([predicted_class])[0]
-
+        
         return (
             f"ผลการวินิจฉัย: {disease_name}\n"
             f"ความแม่นยำ: {confidence:.2f}%\n\n"
