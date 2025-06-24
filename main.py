@@ -12,12 +12,15 @@ import os
 import sys
 import tempfile
 from dotenv import load_dotenv
-from tensorflow.keras.models import load_model
+# from tensorflow.keras.models import load_model
 from PIL import Image
 from io import BytesIO
 from sklearn.preprocessing import LabelEncoder
-import tensorflow as tf
+# import tensorflow as tf
 import asyncio
+import tflite_runtime.interpreter as tflite
+from rapidfuzz import process, fuzz
+from pythainlp.tokenize import word_tokenize
 
 load_dotenv()
 
@@ -35,7 +38,11 @@ if not channel_secret or not channel_access_token:
     sys.exit(1)
 
 try:
-    model = load_model('model_final_1.h5')
+#    model = load_model('model_final_1.h5')
+    interpreter = tflite.Interpreter(model_path="model.tflite")
+    interpreter .allocate_tensors()
+    input_details = interpreter.get_input_details()
+    output_details = interpreter.get_output_details()
     logging.info("Model loaded successfully")
 except Exception as e:
     logging.error(f"Error loading model: {e}")
@@ -293,7 +300,10 @@ async def classify_image(image_data):
             return error_msg
 
         async with model_lock:
-            prediction = model.predict(processed_image)[0]
+            interpreter.set_tensor(input_details[0]['index'], processed_image.astype(np.float32))
+            interpreter.invoke()
+            prediction = interpreter.get_tensor(output_details[0]['index'])[0]
+            #prediction = model.predict(processed_image)[0]
        
         ood_score = calculate_ood_score(prediction)
         confidence = np.max(prediction) * 100
@@ -311,6 +321,8 @@ async def classify_image(image_data):
         logging.error(f"Classification error: {e}")
         return disease_info["Unknown"]
     
+def tokenize(text):
+	return ' ' .join(word_tokenize(text))
 
 @app.post("/callback")
 async def handle_callback(request: Request):
