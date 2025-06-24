@@ -186,11 +186,11 @@ disease_display_names = {
     "Yellow": "โรคใบไหม้"
 }
 disease_keywords = {
-    "Mosaic": ["ใบด่าง", "ด่าง","โรคใบด่าง","โรคใบด่าอ้อย","mosaic","Mosaic","โรคใบด่า","ใบดาง","ดาง","ด่างอ่อย"],
-    "Rust": ["โรคราสนิม", "สนิม","ราสนิม","โรคราสนิมอ้อย","Rust","rust","ราสนิมอ้อย","สนิมอ้อย","จุดสนิม"],
-    "RedRot": ["โรคเหี่ยวเน่าแดง", "เหี่ยวเน่าแดง", "เน่าแดง", "เหี่ยวเน่า", "เน่า", "เหี่ยว", "เน่าแดง", "เหี่ยวเน่าแดงอ้อย" , "เน่าอ้อย","RedRot","redrot"],
-    "Yellow": ["โรคใบไหม้", "ใบไหม้", "ไหม้","โรคใบไหม้อ้อย","Yellow","yellow","ใบไหม้อ้อย","ไหม้อ้อย"],
-    "Healthy": ["อ้อยสุขภาพดี", "สุขภาพดี", "อ้อยสุขภาพ", "Healthy","healthy","สุขภาพดีอ้อย","อ้อยสุขภาพ","ใบปกติ","อ้อยไม่เป็นโรค"]
+    "Mosaic": ["ใบด่าง", "ด่าง","โรคใบด่าง","โรคใบด่าอ้อย","mosaic","Mosaic","โรคใบด่า","ใบดาง","ดาง","ด่างอ่อย", "ใบอ้อยมีลายด่างสีเขียวอ่อนสลับเขียวเข้มเป็นทาง", "ใบอาจบิดเบี้ยวหรือเจริญเติบโตช้ากว่าปกติ", "อ้อยที่เป็นโรครุนแรงอาจแคระแกร็น และให้ผลผลิตต่ำ"],
+    "Rust": ["โรคราสนิม", "สนิม","ราสนิม","โรคราสนิมอ้อย","Rust","rust","ราสนิมอ้อย","สนิมอ้อย","จุดสนิม", "มีจุดสีน้ำตาลหรือส้มกระจายทั่วใบ", "ใบอ้อยเหลืองและแห้งก่อนเวลา", "พบเชื้อราละอองสีน้ำตาลคล้ายสนิม"],
+    "RedRot": ["โรคเหี่ยวเน่าแดง", "เหี่ยวเน่าแดง", "เน่าแดง", "เหี่ยวเน่า", "เน่า", "เหี่ยว", "เน่าแดง", "เหี่ยวเน่าแดงอ้อย" , "เน่าอ้อย","RedRot","redrot", "ใบเหี่ยวแห้ง และมีสีเหลือง", "ลำต้นอ้อยมีรอยแตก และเนื้อในเป็นสีแดง-ดำ", "มีกลิ่นเหม็นเน่า"],
+    "Yellow": ["โรคใบไหม้", "ใบไหม้", "ไหม้","โรคใบไหม้อ้อย","Yellow","yellow","ใบไหม้อ้อย","ไหม้อ้อย", "ใบมีรอยไหม้เป็นทางยาวคล้ายถูกน้ำร้อนลวก", "อ้อยเจริญเติบโตช้า และอาจตายต้น"],
+    "Healthy": ["อ้อยสุขภาพดี", "สุขภาพดี", "อ้อยสุขภาพ", "Healthy","healthy","สุขภาพดีอ้อย","อ้อยสุขภาพ","ใบปกติ","อ้อยไม่เป็นโรค", "ใบมีสีเขียวสดใส สม่ำเสมอ", "ลำต้นแข็งแรง ไม่มีรอยแตกหรือจุดผิดปกติ", "การเจริญเติบโตเป็นไปตามปกติ"]
 }
 app = FastAPI()
 session = aiohttp.ClientSession()
@@ -324,6 +324,33 @@ async def classify_image(image_data):
 def tokenize(text):
 	return ' ' .join(word_tokenize(text))
 
+def find_matching_disease_rapidfuzz(user_input, threshold=75):
+    tokenize_input = tokenize(user_input)
+    best_match = None 
+    best_score = 0
+
+    for disease, keywords in disease_keywords.items():
+        tokenized_keywords = [tokenize(k) for k in keywords]
+        # match, score, _ = process.extractOne(
+        #     tokenize_input,
+        #     tokenized_keywords
+        #     scorer=fuzz.partial_ratio
+        # )
+        # if score >= threshold and score > best_score:
+        #     best_match = disease
+        #     best_score = score 
+        result = process.extractOne(
+            tokenize_input,
+            tokenized_keywords,
+            scorer=fuzz.partial_ratio
+        )
+        if result:
+            _, score, _ = result
+            if score >= threshold and score > best_score:
+                best_match = disease
+                best_score = score
+    return best_match
+
 @app.post("/callback")
 async def handle_callback(request: Request):
     signature = request.headers.get('X-Line-Signature', '')
@@ -342,17 +369,21 @@ async def handle_callback(request: Request):
             msg = event.message.text.strip()
             response = None 
 
-            if msg == ["สวัสดี","สวัสดีครับ", "สวัสดีค่ะ","ดีจ้า","ดีครับ","ดีค่ะ"]:
+            if msg in ["สวัสดี","สวัสดีครับ", "สวัสดีค่ะ","ดีจ้า","ดีครับ","ดีค่ะ"]:
                 response = "น้องอ้อยใจสวัสดีค่ะ 💚\nสามารถส่งรูปภาพใบอ้อยเพื่อทำนายโรคหรือส่งคำถามเกี่ยวกับโรคอ้อยมาได้เลยค่ะ"
-            if not response:
-                matched_disease = None
-                for disease, keywords in disease_keywords.items():
-                    if any(keyword in msg for keyword in keywords):
-                        matched_disease = disease
-                        break
+            # if not response:
+            #     matched_disease = None
+            #     for disease, keywords in disease_keywords.items():
+            #         if any(keyword in msg for keyword in keywords):
+            #             matched_disease = disease
+            #             break
                 
-                if matched_disease:
-                    response = disease_info.get(matched_disease, disease_info["Unknown"])
+            #     if matched_disease:
+            #         response = disease_info.get(matched_disease, disease_info["Unknown"])
+            if not response:
+                match_disease = find_matching_disease_rapidfuzz(msg)
+                if match_disease:
+                    response = f"🦠 ข้อมูลเกี่ยวกับ {disease_display_names[match_disease]}:\n{disease_info.get(match_disease, disease_info['Unknown'])}"
             if not response:
                 list_keywords = [
                     "โรคอะไรบ้าง", "มีโรคอะไร", "โรคมีอะไร", "โรคอ้อย","มีโรคไรบ้าง",
