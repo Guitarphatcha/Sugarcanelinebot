@@ -381,10 +381,6 @@ async def handle_callback(request: Request):
             #     if matched_disease:
             #         response = disease_info.get(matched_disease, disease_info["Unknown"])
             if not response:
-                match_disease = find_matching_disease_rapidfuzz(msg)
-                if match_disease:
-                    response = f"🦠 ข้อมูลเกี่ยวกับ {disease_display_names[match_disease]}:\n{disease_info.get(match_disease, disease_info['Unknown'])}"
-            if not response:
                 list_keywords = [
                     "โรคอะไรบ้าง", "มีโรคอะไร", "โรคมีอะไร", "โรคอ้อย","มีโรคไรบ้าง",
                     "โรคอ้อยที่พบบ่อยในประเทศไทย", "โรคอ้อยที่พบบ่อย", "โรคอ่อย", 
@@ -402,7 +398,10 @@ async def handle_callback(request: Request):
 
             if not response:
                 response = "ระบบนี้ใช้สำหรับวิเคราะห์โรคอ้อยเท่านั้น"
-
+            if not response:
+                match_disease = find_matching_disease_rapidfuzz(msg)
+                if match_disease:
+                    response = f"🦠 ข้อมูลเกี่ยวกับ {disease_display_names[match_disease]}:\n{disease_info.get(match_disease, disease_info['Unknown'])}"
             await line_bot_api.reply_message(
                 event.reply_token,
                 TextSendMessage(text=response) )
