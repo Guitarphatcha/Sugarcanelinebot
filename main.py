@@ -396,12 +396,13 @@ async def handle_callback(request: Request):
                 if any(kw in msg for kw in ["โรค", "อ้อย"]):
                     response = "กรุณาส่งภาพใบอ้อยเพื่อวิเคราะห์โรค"
 
-            if not response:
-                response = "ระบบนี้ใช้สำหรับวิเคราะห์โรคอ้อยเท่านั้น"
+            
             if not response:
                 match_disease = find_matching_disease_rapidfuzz(msg)
                 if match_disease:
                     response = f"🦠 ข้อมูลเกี่ยวกับ {disease_display_names[match_disease]}:\n{disease_info.get(match_disease, disease_info['Unknown'])}"
+            if not response:
+                response = "ระบบนี้ใช้สำหรับวิเคราะห์โรคอ้อยเท่านั้น"
             await line_bot_api.reply_message(
                 event.reply_token,
                 TextSendMessage(text=response) )
